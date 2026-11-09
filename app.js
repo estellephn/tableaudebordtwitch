@@ -2,7 +2,6 @@
   "use strict";
 
   /* ---------- Données ---------- */
-  const LS_KEY = "piixelie-dashboard-v1";
   const STREAM_STEPS = [
     ["clips", "Clips réalisés"],
     ["downloaded", "Importé sur le PC"],
@@ -20,115 +19,38 @@
     ["tiktok", "TikTok"],
   ];
 
-  let data = { updatedAt: 0, streams: [], clips: [] };
-  let fileHandle = null;
+  const emptyData = () => ({ updatedAt: 0, streams: [], clips: [] });
+  let data = emptyData();
+  let user = null;
 
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-  /* ---------- IndexedDB (copie de secours + mémoire du fichier lié) ---------- */
-  const idb = {
-    db: null,
-    open() {
-      return new Promise((res, rej) => {
-        const r = indexedDB.open("piixelie", 1);
-        r.onupgradeneeded = () => r.result.createObjectStore("kv");
-        r.onsuccess = () => { idb.db = r.result; res(); };
-        r.onerror = () => rej(r.error);
-      });
-    },
-    get(k) {
-      return new Promise((res) => {
-        try {
-          const q = idb.db.transaction("kv").objectStore("kv").get(k);
-          q.onsuccess = () => res(q.result);
-          q.onerror = () => res(undefined);
-        } catch { res(undefined); }
-      });
-    },
-    set(k, v) {
-      return new Promise((res) => {
-        try {
-          const t = idb.db.transaction("kv", "readwrite");
-          t.objectStore("kv").put(v, k);
-          t.oncomplete = () => res(true);
-          t.onerror = () => res(false);
-        } catch { res(false); }
-      });
-    },
-  };
-
-  /* ---------- Sauvegarde ---------- */
   const normalize = (d) => ({
     updatedAt: Number(d?.updatedAt) || 0,
     streams: Array.isArray(d?.streams) ? d.streams : [],
     clips: Array.isArray(d?.clips) ? d.clips : [],
   });
 
-  async function writeFile() {
-    if (!fileHandle) return;
-    try {
-      const w = await fileHandle.createWritable();
-      await w.write(JSON.stringify(data, null, 2));
-      await w.close();
-      setSync(true, "Fichier synchronisé");
-    } catch {
-      setSync(false, "Fichier à reconnecter");
-    }
-  }
-
-  /* touch = false quand les données viennent d'ailleurs (fichier, cloud) : on garde leur date. */
-  async function persist(touch = true) {
-    if (touch) data.updatedAt = Date.now();
-    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {}
-    await idb.set("data", data);
-    await writeFile();
-    if (touch) cloudSchedule();
-  }
-
-  async function readFile() {
-    const f = await fileHandle.getFile();
-    const txt = await f.text();
-    return txt.trim() ? normalize(JSON.parse(txt)) : null;
-  }
-
-  /* On garde toujours la version la plus récente entre navigateur et fichier. */
-  async function loadAll() {
-    await idb.open().catch(() => {});
-    let local = null;
-    try { local = normalize(JSON.parse(localStorage.getItem(LS_KEY))); } catch {}
-    const fromIdb = idb.db ? await idb.get("data") : null;
-    const candidates = [local, fromIdb ? normalize(fromIdb) : null].filter(Boolean);
-    data = candidates.sort((a, b) => b.updatedAt - a.updatedAt)[0] || data;
-
-    fileHandle = idb.db ? await idb.get("handle") : null;
-    if (fileHandle) {
-      try {
-        if ((await fileHandle.queryPermission({ mode: "readwrite" })) === "granted") {
-          const fromFile = await readFile();
-          if (fromFile && fromFile.updatedAt > data.updatedAt) data = fromFile;
-          await persist(false);
-        } else {
-          setSync(false, "Fichier à reconnecter");
-        }
-      } catch { setSync(false, "Fichier à reconnecter"); }
-    }
-    if (navigator.storage?.persist) navigator.storage.persist();
-  }
-
-  const fileState = { ok: false, label: "Sauvegarde locale" };
   const cloudState = { ok: false, label: "" };
-  let user = null;
-
   function updatePill() {
-    const s = user && cloudState.label ? cloudState : { ok: fileState.ok, label: "Connexion" };
-    $("#syncLabel").textContent = s.label;
-    $("#syncDot").classList.toggle("ok", s.ok);
+    $("#syncLabel").textContent = user ? (cloudState.label || "En ligne") : "Connexion";
+    $("#syncDot").classList.toggle("ok", !!user && cloudState.ok);
   }
-  function setSync(linked, label) {
-    fileState.ok = linked; fileState.label = label;
-    updatePill();
+
+  /* touch = false quand les données viennent du cloud : on garde leur date. */
+  async function persist(touch = true) {
+    if (touch) { data.updatedAt = Date.now(); cloudSchedule(); }
+  }
+
+  /* Toute action sur les données demande d'être connecté. */
+  function requireUser() {
+    if (user) return true;
+    toast("Connecte-toi d'abord");
+    refreshAuth();
+    if (!dlg.open) dlg.showModal();
+    return false;
   }
 
   /* ---------- Rendu ---------- */
@@ -158,25 +80,29 @@
 
   function renderStreams() {
     const todoOnly = $("#streamTodo").checked;
-    const all = [...data.streams].sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`));
+    const showArch = $("#streamArchived").checked;
+    const all = data.streams.filter((s) => !!s.archived === showArch).sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`));
     const done = (s) => STREAM_STEPS.every(([k]) => s[k]);
     const list = todoOnly ? all.filter((s) => !done(s)) : all;
     const urgent = all.filter((s) => vodInfo(s)?.cls === "urgent").length;
-    $("#streamCount").textContent = `${all.filter(done).length} terminé(s) sur ${all.length}` + (urgent ? `, dont ${urgent} VOD à sauver vite` : "");
+    $("#streamCount").textContent = `${all.filter(done).length} terminé(s) sur ${all.length}` + (showArch ? " (archivés)" : "") + (urgent ? `, dont ${urgent} VOD à sauver vite` : "");
     $("#streamList").innerHTML = list.length
       ? list.map((s) => {
           const n = STREAM_STEPS.filter(([k]) => s[k]).length;
           const vod = vodInfo(s);
-          return `<article class="card ${n === STREAM_STEPS.length ? "complete" : ""}">
+          return `<article class="card ${n === STREAM_STEPS.length ? "complete" : ""} ${s.archived ? "archived" : ""}">
             <div class="head">
               <div><h3>${esc(s.title)}</h3><p class="when">${esc(fmtWhen(s.date, s.time))}</p>${vod ? `<p class="vod ${vod.cls}">${vod.text}</p>` : ""}</div>
-              <button class="del" data-del="streams" data-id="${s.id}" aria-label="Supprimer ${esc(s.title)}">Supprimer</button>
+              <div class="tools">
+                <button class="del" data-archive="${s.id}" aria-label="${s.archived ? "Désarchiver" : "Archiver"} ${esc(s.title)}">${s.archived ? "Désarchiver" : "Archiver"}</button>
+                <button class="del" data-del="streams" data-id="${s.id}" aria-label="Supprimer ${esc(s.title)}">Supprimer</button>
+              </div>
             </div>
             <div class="meter" aria-hidden="true"><i style="width:${(n / STREAM_STEPS.length) * 100}%"></i></div>
             <div class="chips">${STREAM_STEPS.map(([k, l]) => chip("streams", s.id, k, l, s[k])).join("")}</div>
           </article>`;
         }).join("")
-      : `<p class="empty">${todoOnly ? "Rien à finir, tout est prêt." : "Aucun stream pour l'instant. Ajoute le dernier que tu as réalisé."}</p>`;
+      : `<p class="empty">${showArch ? "Aucun stream archivé." : todoOnly ? "Rien à finir, tout est prêt." : "Aucun stream pour l'instant. Ajoute le dernier que tu as réalisé."}</p>`;
   }
 
   function renderClips() {
@@ -207,7 +133,7 @@
   function renderSelect() {
     const sel = $("#cStream");
     const cur = sel.value;
-    const streams = [...data.streams].sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`));
+    const streams = data.streams.filter((s) => !s.archived).sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`));
     sel.innerHTML = `<option value="">Aucun</option>` + streams.map((s) => `<option value="${s.id}">${esc(s.title)}</option>`).join("");
     sel.value = streams.some((s) => s.id === cur) ? cur : "";
   }
@@ -232,6 +158,7 @@
 
   $("#streamForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!requireUser()) return;
     data.streams.push({ id: uid(), title: $("#sTitle").value.trim(), date: $("#sDate").value, time: $("#sTime").value, clips: false, downloaded: false, thumb: false, rediff: false });
     $("#sTitle").value = "";
     await persist(); render(); toast("Stream ajouté");
@@ -239,6 +166,7 @@
 
   $("#clipForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!requireUser()) return;
     data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), draftShorts: false, draftReels: false, draftTiktok: false, shorts: false, reels: false, tiktok: false });
     $("#cName").value = "";
     await persist(); render(); toast("Clip ajouté");
@@ -256,14 +184,24 @@
   });
 
   document.addEventListener("click", async (e) => {
+    const a = e.target.closest("[data-archive]");
+    if (a) {
+      const s = data.streams.find((x) => x.id === a.dataset.archive);
+      if (!s || !requireUser()) return;
+      s.archived = !s.archived;
+      await persist(); render();
+      toast(s.archived ? "Stream archivé" : "Stream désarchivé");
+      return;
+    }
     const b = e.target.closest("[data-del]");
-    if (!b) return;
+    if (!b || !requireUser()) return;
     if (!confirm("Supprimer définitivement cet élément ?")) return;
     data[b.dataset.del] = data[b.dataset.del].filter((x) => x.id !== b.dataset.id);
     await persist(); render(); toast("Supprimé");
   });
 
   $("#streamTodo").addEventListener("change", renderStreams);
+  $("#streamArchived").addEventListener("change", renderStreams);
   $("#clipTodo").addEventListener("change", renderClips);
 
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
@@ -272,70 +210,10 @@
     $("#tab-clips").hidden = t.dataset.tab !== "clips";
   }));
 
-  /* ---------- Fenêtre de sauvegarde ---------- */
-  const canLink = "showSaveFilePicker" in window;
+  /* ---------- Fenêtre de connexion ---------- */
   const dlg = $("#syncDialog");
-  function refreshDialog() {
-    $("#fileStatus").textContent = fileHandle ? `Fichier lié : ${fileHandle.name}` : canLink ? "Aucun fichier lié pour l'instant." : "Ton navigateur ne peut pas lier de fichier. Utilise l'export manuel régulièrement.";
-    $("#linkCreate").hidden = $("#linkOpen").hidden = !canLink;
-    $("#relink").hidden = !fileHandle;
-  }
-  $("#syncBtn").addEventListener("click", () => { refreshDialog(); refreshAuth(); dlg.showModal(); });
+  $("#syncBtn").addEventListener("click", () => { refreshAuth(); dlg.showModal(); });
   $("#closeDialog").addEventListener("click", () => dlg.close());
-
-  async function adopt(handle, merge) {
-    fileHandle = handle;
-    await idb.set("handle", handle);
-    if (merge) {
-      const f = await readFile().catch(() => null);
-      if (f) data = f;
-    }
-    await persist(false); render(); refreshDialog();
-    toast("Fichier lié");
-  }
-
-  $("#linkCreate").addEventListener("click", async () => {
-    try {
-      const h = await window.showSaveFilePicker({ suggestedName: "piixelie-dashboard.json", types: [{ description: "JSON", accept: { "application/json": [".json"] } }] });
-      await adopt(h, false);
-    } catch {}
-  });
-
-  $("#linkOpen").addEventListener("click", async () => {
-    try {
-      const [h] = await window.showOpenFilePicker({ types: [{ description: "JSON", accept: { "application/json": [".json"] } }] });
-      if ((await h.requestPermission({ mode: "readwrite" })) !== "granted") return;
-      await adopt(h, true);
-    } catch {}
-  });
-
-  $("#relink").addEventListener("click", async () => {
-    try {
-      if ((await fileHandle.requestPermission({ mode: "readwrite" })) !== "granted") return;
-      const f = await readFile().catch(() => null);
-      if (f && f.updatedAt > data.updatedAt) data = f;
-      await persist(false); render(); refreshDialog();
-      toast("Fichier reconnecté");
-    } catch {}
-  });
-
-  $("#exportBtn").addEventListener("click", () => {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-    a.download = "piixelie-dashboard.json";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  });
-
-  $("#importInput").addEventListener("change", async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      data = normalize(JSON.parse(await file.text()));
-      await persist(); render(); toast("Données importées");
-    } catch { toast("Fichier invalide"); }
-    e.target.value = "";
-  });
 
   /* ---------- Supabase : connexion par mail + données en ligne ---------- */
   const cfg = window.PIIXELIE_CONFIG || {};
@@ -390,11 +268,20 @@
 
   function cloudInit() {
     refreshAuth();
-    if (!sb) return;
+    if (!sb) { dlg.showModal(); return; }
     sb.auth.onAuthStateChange((_event, session) => {
+      const was = user;
       user = session?.user || null;
-      if (!user) setCloud(false, "");
       refreshAuth();
+      if (!user) {
+        clearTimeout(pushTimer);
+        data = emptyData();
+        setCloud(false, "");
+        render();
+        if (!dlg.open) dlg.showModal();
+        return;
+      }
+      if (!was && dlg.open) dlg.close();
       setTimeout(cloudPull, 0);
     });
     document.addEventListener("visibilitychange", () => { if (!document.hidden) cloudPull(); });
@@ -421,14 +308,6 @@
     else authMsg("Compte créé. Clique sur le lien de confirmation reçu par mail, puis connecte-toi.");
   });
 
-  $("#magicBtn").addEventListener("click", async () => {
-    const email = $("#authEmail").value.trim();
-    if (!email) return authMsg("Entre ton mail d'abord.");
-    authMsg("Envoi du lien…");
-    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo() } });
-    authMsg(error ? "Impossible d'envoyer le lien : " + error.message : "Lien envoyé. Clique dessus depuis cet appareil.");
-  });
-
   $("#passForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const { error } = await sb.auth.updateUser({ password: $("#newPass").value });
@@ -440,9 +319,6 @@
   /* ---------- Démarrage ---------- */
   setNowDefaults();
   setInterval(() => { if (!$("#streamList").contains(document.activeElement)) renderStreams(); }, 5 * 60 * 1000);
-  loadAll().then(() => {
-    if (!fileHandle) setSync(false, "Sauvegarde locale");
-    render();
-    cloudInit();
-  });
+  render();
+  cloudInit();
 })();

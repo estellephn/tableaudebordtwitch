@@ -40,7 +40,10 @@
 
       <div class="bar">
         <p class="count" id="streamCount"></p>
-        <label class="inline"><input type="checkbox" id="streamTodo"><span>Voir seulement ceux à finir</span></label>
+        <div class="filters">
+          <label class="inline"><input type="checkbox" id="streamTodo"><span>Voir seulement ceux à finir</span></label>
+          <label class="inline"><input type="checkbox" id="streamArchived"><span>Voir les archivés</span></label>
+        </div>
       </div>
       <div id="streamList" class="list"></div>
     </section>
@@ -67,13 +70,12 @@
 
   <!-- Fenêtre de sauvegarde -->
   <dialog id="syncDialog">
-    <h2>Sauvegarde de tes données</h2>
+    <h2>Connexion</h2>
 
     <section class="auth">
-      <h3>Compte en ligne</h3>
       <p id="authOff" hidden>Supabase n'est pas encore configuré : renseigne <code>config.js</code>.</p>
       <form id="authIn" hidden>
-        <p>Connecte-toi pour retrouver tes données sur tous tes appareils.</p>
+        <p>Connecte-toi pour accéder à tes données, synchronisées sur tous tes appareils.</p>
         <div class="actions">
           <input id="authEmail" type="email" placeholder="ton@mail.fr" required autocomplete="username">
           <input id="authPass" type="password" placeholder="Mot de passe" required minlength="6" autocomplete="current-password">
@@ -81,7 +83,6 @@
         <div class="actions">
           <button class="btn" type="submit">Se connecter</button>
           <button class="btn ghost" id="signupBtn" type="button">Créer le compte</button>
-          <button class="btn ghost" id="magicBtn" type="button">Recevoir un lien par mail</button>
         </div>
         <p class="status" id="authMsg" role="status"></p>
       </form>
@@ -96,19 +97,6 @@
       </div>
     </section>
 
-    <h3>Sur cet ordinateur</h3>
-    <p>Tes données sont gardées dans le navigateur. Pour qu'elles survivent à un nettoyage complet (cookies et données de sites), lie un fichier de sauvegarde : le tableau de bord l'écrit à chaque modification.</p>
-    <p class="status" id="fileStatus"></p>
-    <div class="actions">
-      <button class="btn" id="linkCreate">Créer le fichier de sauvegarde</button>
-      <button class="btn ghost" id="linkOpen">Ouvrir un fichier existant</button>
-      <button class="btn ghost" id="relink" hidden>Reconnecter le fichier</button>
-    </div>
-    <p class="hint">Sans lien de fichier (Firefox, Safari), utilise l'export manuel :</p>
-    <div class="actions">
-      <button class="btn ghost" id="exportBtn">Exporter en .json</button>
-      <label class="btn ghost file">Importer un .json<input id="importInput" type="file" accept="application/json" hidden></label>
-    </div>
     <button class="close" id="closeDialog" aria-label="Fermer">Fermer</button>
   </dialog>
 
