@@ -398,7 +398,7 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) cloudPull(); });
   }
 
-  $("#authForm").addEventListener("submit", async (e) => {
+  $("#authIn").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = $("#authEmail").value.trim();
     $("#authMsg").textContent = "Envoi du lien…";
