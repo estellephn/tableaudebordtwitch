@@ -78,11 +78,13 @@
     }
   }
 
-  async function persist() {
-    data.updatedAt = Date.now();
+  /* touch = false quand les données viennent d'ailleurs (fichier, cloud) : on garde leur date. */
+  async function persist(touch = true) {
+    if (touch) data.updatedAt = Date.now();
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {}
     await idb.set("data", data);
     await writeFile();
+    if (touch) cloudSchedule();
   }
 
   async function readFile() {
@@ -106,7 +108,7 @@
         if ((await fileHandle.queryPermission({ mode: "readwrite" })) === "granted") {
           const fromFile = await readFile();
           if (fromFile && fromFile.updatedAt > data.updatedAt) data = fromFile;
-          await persist();
+          await persist(false);
         } else {
           setSync(false, "Fichier à reconnecter");
         }
@@ -115,9 +117,18 @@
     if (navigator.storage?.persist) navigator.storage.persist();
   }
 
+  const fileState = { ok: false, label: "Sauvegarde locale" };
+  const cloudState = { ok: false, label: "" };
+  let user = null;
+
+  function updatePill() {
+    const s = user && cloudState.label ? cloudState : fileState;
+    $("#syncLabel").textContent = s.label;
+    $("#syncDot").classList.toggle("ok", s.ok);
+  }
   function setSync(linked, label) {
-    $("#syncLabel").textContent = label;
-    $("#syncDot").classList.toggle("ok", linked);
+    fileState.ok = linked; fileState.label = label;
+    updatePill();
   }
 
   /* ---------- Rendu ---------- */
@@ -269,7 +280,7 @@
     $("#linkCreate").hidden = $("#linkOpen").hidden = !canLink;
     $("#relink").hidden = !fileHandle;
   }
-  $("#syncBtn").addEventListener("click", () => { refreshDialog(); dlg.showModal(); });
+  $("#syncBtn").addEventListener("click", () => { refreshDialog(); refreshAuth(); dlg.showModal(); });
   $("#closeDialog").addEventListener("click", () => dlg.close());
 
   async function adopt(handle, merge) {
@@ -279,7 +290,7 @@
       const f = await readFile().catch(() => null);
       if (f) data = f;
     }
-    await persist(); render(); refreshDialog();
+    await persist(false); render(); refreshDialog();
     toast("Fichier lié");
   }
 
@@ -303,7 +314,7 @@
       if ((await fileHandle.requestPermission({ mode: "readwrite" })) !== "granted") return;
       const f = await readFile().catch(() => null);
       if (f && f.updatedAt > data.updatedAt) data = f;
-      await persist(); render(); refreshDialog();
+      await persist(false); render(); refreshDialog();
       toast("Fichier reconnecté");
     } catch {}
   });
@@ -326,6 +337,76 @@
     e.target.value = "";
   });
 
+  /* ---------- Supabase : connexion par mail + données en ligne ---------- */
+  const cfg = window.PIIXELIE_CONFIG || {};
+  const sb = window.supabase && cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("VOTRE")
+    ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY)
+    : null;
+  let pushTimer = null;
+
+  function setCloud(ok, label) {
+    cloudState.ok = ok; cloudState.label = label;
+    updatePill();
+  }
+
+  function refreshAuth() {
+    $("#authOff").hidden = !!sb;
+    $("#authIn").hidden = !sb || !!user;
+    $("#authOut").hidden = !sb || !user;
+    if (user) $("#authMail").textContent = user.email;
+  }
+
+  async function cloudPush() {
+    if (!sb || !user) return;
+    const { error } = await sb.from("dashboards").upsert({ user_id: user.id, data, updated_at: new Date().toISOString() });
+    setCloud(!error, error ? "En ligne : erreur d'envoi" : "Synchronisé en ligne");
+  }
+  function cloudSchedule() {
+    if (!sb || !user) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(cloudPush, 800);
+  }
+
+  /* La version la plus récente gagne, entre ce navigateur et le cloud. */
+  async function cloudPull() {
+    if (!sb || !user) return;
+    const { data: row, error } = await sb.from("dashboards").select("data").eq("user_id", user.id).maybeSingle();
+    if (error) { setCloud(false, "En ligne : erreur de lecture"); return; }
+    const remote = row ? normalize(row.data) : null;
+    if (remote && remote.updatedAt > data.updatedAt) {
+      data = remote;
+      await persist(false);
+      render();
+      setCloud(true, "Synchronisé en ligne");
+      toast("Données récupérées");
+    } else if (!remote || remote.updatedAt < data.updatedAt) {
+      await cloudPush();
+    } else {
+      setCloud(true, "Synchronisé en ligne");
+    }
+  }
+
+  function cloudInit() {
+    refreshAuth();
+    if (!sb) return;
+    sb.auth.onAuthStateChange((_event, session) => {
+      user = session?.user || null;
+      if (!user) setCloud(false, "");
+      refreshAuth();
+      setTimeout(cloudPull, 0);
+    });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) cloudPull(); });
+  }
+
+  $("#authForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("#authEmail").value.trim();
+    $("#authMsg").textContent = "Envoi du lien…";
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+    $("#authMsg").textContent = error ? "Impossible d'envoyer le lien : " + error.message : "Lien envoyé. Ouvre ta boîte mail et clique dessus depuis cet appareil.";
+  });
+  $("#logoutBtn").addEventListener("click", async () => { await sb.auth.signOut(); toast("Déconnectée"); });
+
   /* ---------- Démarrage ---------- */
   setNowDefaults();
   setInterval(() => { if (!$("#streamList").contains(document.activeElement)) renderStreams(); }, 5 * 60 * 1000);
@@ -333,5 +414,6 @@
     if (!fileHandle) setSync(false, "Sauvegarde locale");
     else if (!$("#syncDot").classList.contains("ok") && $("#syncLabel").textContent === "Sauvegarde locale") setSync(true, "Fichier synchronisé");
     render();
+    cloudInit();
   });
 })();

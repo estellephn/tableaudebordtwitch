@@ -67,6 +67,25 @@
   <!-- Fenêtre de sauvegarde -->
   <dialog id="syncDialog">
     <h2>Sauvegarde de tes données</h2>
+
+    <section class="auth">
+      <h3>Compte en ligne</h3>
+      <p id="authOff" hidden>Supabase n'est pas encore configuré : renseigne <code>config.js</code>.</p>
+      <form id="authIn" hidden>
+        <p>Connecte-toi par mail pour retrouver tes données sur tous tes appareils. Tu reçois un lien, sans mot de passe.</p>
+        <div class="actions">
+          <input id="authEmail" type="email" placeholder="ton@mail.fr" required autocomplete="email">
+          <button class="btn" type="submit">Recevoir le lien</button>
+        </div>
+        <p class="status" id="authMsg" role="status"></p>
+      </form>
+      <div id="authOut" hidden>
+        <p class="status">Connectée : <span id="authMail"></span></p>
+        <div class="actions"><button class="btn ghost" id="logoutBtn" type="button">Se déconnecter</button></div>
+      </div>
+    </section>
+
+    <h3>Sur cet ordinateur</h3>
     <p>Tes données sont gardées dans le navigateur. Pour qu'elles survivent à un nettoyage complet (cookies et données de sites), lie un fichier de sauvegarde : le tableau de bord l'écrit à chaque modification.</p>
     <p class="status" id="fileStatus"></p>
     <div class="actions">
@@ -83,6 +102,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
