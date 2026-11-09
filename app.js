@@ -339,8 +339,10 @@
 
   /* ---------- Supabase : connexion par mail + données en ligne ---------- */
   const cfg = window.PIIXELIE_CONFIG || {};
-  const sb = window.supabase && cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("VOTRE")
-    ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY)
+  let sbUrl = (cfg.SUPABASE_URL || "").trim();
+  try { sbUrl = new URL(sbUrl).origin; } catch {} /* garde seulement https://xxx.supabase.co */
+  const sb = window.supabase && sbUrl && !sbUrl.includes("VOTRE")
+    ? window.supabase.createClient(sbUrl, (cfg.SUPABASE_ANON_KEY || "").trim())
     : null;
   let pushTimer = null;
 
