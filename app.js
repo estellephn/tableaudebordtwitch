@@ -9,6 +9,11 @@
     ["thumb", "Miniature faite"],
     ["rediff", "Rediff YouTube programmée"],
   ];
+  const CLIP_DRAFTS = [
+    ["draftShorts", "Brouillon Short"],
+    ["draftReels", "Brouillon Insta"],
+    ["draftTiktok", "Brouillon TikTok"],
+  ];
   const CLIP_PLATFORMS = [
     ["shorts", "Short YouTube"],
     ["reels", "Reel Instagram"],
@@ -164,6 +169,9 @@
               <div><h3>${esc(c.name)}</h3>${origin ? `<p class="origin">Stream : ${esc(origin)}</p>` : ""}</div>
               <button class="del" data-del="clips" data-id="${c.id}" aria-label="Supprimer ${esc(c.name)}">Supprimer</button>
             </div>
+            <p class="group-label">Brouillons créés</p>
+            <div class="chips">${CLIP_DRAFTS.map(([k, l]) => chip("clips", c.id, k, l, c[k])).join("")}</div>
+            <p class="group-label">Publiés</p>
             <div class="chips">${CLIP_PLATFORMS.map(([k, l]) => chip("clips", c.id, k, l, c[k])).join("")}</div>
           </article>`;
         }).join("")
@@ -205,7 +213,7 @@
 
   $("#clipForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), shorts: false, reels: false, tiktok: false });
+    data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), draftShorts: false, draftReels: false, draftTiktok: false, shorts: false, reels: false, tiktok: false });
     $("#cName").value = "";
     await persist(); render(); toast("Clip ajouté");
   });

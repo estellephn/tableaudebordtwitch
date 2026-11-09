@@ -198,3 +198,5 @@ dialog p { line-height: 1.5; color: var(--text); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media (max-width: 560px) { .add .btn { width: 100%; } }
+
+.group-label { margin: 0 0 -4px; font-size: .82rem; color: var(--muted); }
