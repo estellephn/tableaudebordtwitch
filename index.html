@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Piixelie – Tableau de bord contenu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1 class="sign">Piixelie</h1>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab is-active" role="tab" aria-selected="true" data-tab="streams">Streams</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="clips">Clips</button>
+    </nav>
+    <button class="sync" id="syncBtn" aria-haspopup="dialog">
+      <span class="dot" id="syncDot"></span><span id="syncLabel">Sauvegarde locale</span>
+    </button>
+  </header>
+
+  <main>
+    <!-- STREAMS -->
+    <section id="tab-streams" class="panel">
+      <form id="streamForm" class="add">
+        <label class="field grow">Titre du stream
+          <input id="sTitle" type="text" placeholder="Ex : Minecraft Homestead, épisode 3" required maxlength="120">
+        </label>
+        <label class="field">Date
+          <input id="sDate" type="date" required>
+        </label>
+        <label class="field">Heure de début
+          <input id="sTime" type="time" required>
+        </label>
+        <button class="btn" type="submit">Ajouter le stream</button>
+      </form>
+
+      <div class="bar">
+        <p class="count" id="streamCount"></p>
+        <label class="inline"><input type="checkbox" id="streamTodo"><span>Voir seulement ceux à finir</span></label>
+      </div>
+      <div id="streamList" class="list"></div>
+    </section>
+
+    <!-- CLIPS -->
+    <section id="tab-clips" class="panel" hidden>
+      <form id="clipForm" class="add">
+        <label class="field grow">Nom de l'extrait
+          <input id="cName" type="text" placeholder="Ex : Mort ridicule dans la lave" required maxlength="120">
+        </label>
+        <label class="field">Stream d'origine
+          <select id="cStream"><option value="">Aucun</option></select>
+        </label>
+        <button class="btn" type="submit">Ajouter le clip</button>
+      </form>
+
+      <div class="bar">
+        <p class="count" id="clipCount"></p>
+        <label class="inline"><input type="checkbox" id="clipTodo"><span>Voir seulement ceux à publier</span></label>
+      </div>
+      <div id="clipList" class="list"></div>
+    </section>
+  </main>
+
+  <!-- Fenêtre de sauvegarde -->
+  <dialog id="syncDialog">
+    <h2>Sauvegarde de tes données</h2>
+    <p>Tes données sont gardées dans le navigateur. Pour qu'elles survivent à un nettoyage complet (cookies et données de sites), lie un fichier de sauvegarde : le tableau de bord l'écrit à chaque modification.</p>
+    <p class="status" id="fileStatus"></p>
+    <div class="actions">
+      <button class="btn" id="linkCreate">Créer le fichier de sauvegarde</button>
+      <button class="btn ghost" id="linkOpen">Ouvrir un fichier existant</button>
+      <button class="btn ghost" id="relink" hidden>Reconnecter le fichier</button>
+    </div>
+    <p class="hint">Sans lien de fichier (Firefox, Safari), utilise l'export manuel :</p>
+    <div class="actions">
+      <button class="btn ghost" id="exportBtn">Exporter en .json</button>
+      <label class="btn ghost file">Importer un .json<input id="importInput" type="file" accept="application/json" hidden></label>
+    </div>
+    <button class="close" id="closeDialog" aria-label="Fermer">Fermer</button>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
