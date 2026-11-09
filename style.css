@@ -260,3 +260,21 @@ dialog code { background: var(--bg); padding: 1px 6px; border-radius: 4px; }
   }
   dialog .actions .btn, dialog .actions input { flex: 1 1 100%; }
 }
+
+/* Champs date et heure : ne jamais dépasser du cadre (iOS et Android) */
+input[type=date], input[type=time] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+input[type=date]::-webkit-date-and-time-value,
+input[type=time]::-webkit-date-and-time-value { text-align: left; min-height: 1.3em; }
+.add .field { min-width: 0; }
+@media (max-width: 640px) {
+  .add .field.half { flex: 1 1 0; }
+  input[type=date], input[type=time] { padding-left: 10px; padding-right: 10px; }
+}
