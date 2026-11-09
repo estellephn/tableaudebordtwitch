@@ -220,3 +220,43 @@ input[type=email], input[type=password] {
 .auth { border-bottom: 1px solid var(--line); margin-bottom: 14px; }
 dialog h3 { margin: 14px 0 4px; font: 700 1rem var(--display); color: var(--neon-soft); }
 dialog code { background: var(--bg); padding: 1px 6px; border-radius: 4px; }
+
+/* ---------- Téléphone ---------- */
+@media (max-width: 640px) {
+  body { padding: 0 14px calc(84px + env(safe-area-inset-bottom)); }
+  .top { padding: calc(14px + env(safe-area-inset-top)) 0 12px; flex-wrap: nowrap; gap: 12px; }
+  .sign { font-size: 1.9rem; flex: 1; }
+  .sync { padding: 10px 14px; min-height: 44px; }
+
+  /* Navigation en bas de l'écran, à portée de pouce */
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; margin: 0; gap: 0;
+    display: grid; grid-template-columns: 1fr 1fr;
+    background: var(--panel); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab { border-radius: 0; min-height: 60px; font-size: 1.05rem; border: 0; border-top: 3px solid transparent; }
+  .tab.is-active { border-top-color: var(--neon); box-shadow: none; background: rgba(255, 47, 168, .14); text-shadow: var(--glow); }
+
+  .add { padding: 14px; gap: 12px; }
+  .add .field { flex: 1 1 100%; }
+  .add .field.half { flex: 1 1 calc(50% - 6px); min-width: 0; }
+  .add input, .add select { width: 100%; min-width: 0; }
+
+  .card { padding: 14px; }
+  .head h3 { overflow-wrap: anywhere; }
+  .del { min-height: 44px; min-width: 44px; }
+
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chip span { width: 100%; min-height: 52px; border-radius: 12px; font-size: .9rem; line-height: 1.2; }
+
+  .bar { margin-top: 18px; }
+  .inline { min-height: 44px; }
+  .toast { bottom: calc(76px + env(safe-area-inset-bottom)); width: max-content; max-width: calc(100% - 28px); text-align: center; }
+
+  dialog {
+    width: 100%; max-width: none; margin: auto 0 0; max-height: 92vh; overflow-y: auto;
+    border-radius: 18px 18px 0 0; padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
+  }
+  dialog .actions .btn, dialog .actions input { flex: 1 1 100%; }
+}

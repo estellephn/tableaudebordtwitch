@@ -2,7 +2,8 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12030f">
   <title>Piixelie – Tableau de bord contenu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +18,7 @@
       <button class="tab" role="tab" aria-selected="false" data-tab="clips">Clips</button>
     </nav>
     <button class="sync" id="syncBtn" aria-haspopup="dialog">
-      <span class="dot" id="syncDot"></span><span id="syncLabel">Sauvegarde locale</span>
+      <span class="dot" id="syncDot"></span><span id="syncLabel">Connexion</span>
     </button>
   </header>
 
@@ -28,10 +29,10 @@
         <label class="field grow">Titre du stream
           <input id="sTitle" type="text" placeholder="Ex : Minecraft Homestead, épisode 3" required maxlength="120">
         </label>
-        <label class="field">Date
+        <label class="field half">Date
           <input id="sDate" type="date" required>
         </label>
-        <label class="field">Heure de début
+        <label class="field half">Heure de début
           <input id="sTime" type="time" required>
         </label>
         <button class="btn" type="submit">Ajouter le stream</button>

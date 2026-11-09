@@ -122,7 +122,7 @@
   let user = null;
 
   function updatePill() {
-    const s = user && cloudState.label ? cloudState : fileState;
+    const s = user && cloudState.label ? cloudState : { ok: fileState.ok, label: "Connexion" };
     $("#syncLabel").textContent = s.label;
     $("#syncDot").classList.toggle("ok", s.ok);
   }
@@ -442,7 +442,6 @@
   setInterval(() => { if (!$("#streamList").contains(document.activeElement)) renderStreams(); }, 5 * 60 * 1000);
   loadAll().then(() => {
     if (!fileHandle) setSync(false, "Sauvegarde locale");
-    else if (!$("#syncDot").classList.contains("ok") && $("#syncLabel").textContent === "Sauvegarde locale") setSync(true, "Fichier synchronisé");
     render();
     cloudInit();
   });
