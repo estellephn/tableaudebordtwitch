@@ -400,12 +400,40 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) cloudPull(); });
   }
 
+  const authMsg = (t) => { $("#authMsg").textContent = t; };
+  const redirectTo = () => location.origin + location.pathname;
+
   $("#authIn").addEventListener("submit", async (e) => {
     e.preventDefault();
+    authMsg("Connexion…");
+    const { error } = await sb.auth.signInWithPassword({ email: $("#authEmail").value.trim(), password: $("#authPass").value });
+    if (error) authMsg("Connexion impossible : " + error.message);
+    else { authMsg(""); $("#authPass").value = ""; }
+  });
+
+  $("#signupBtn").addEventListener("click", async () => {
+    const email = $("#authEmail").value.trim(), password = $("#authPass").value;
+    if (!email || password.length < 6) return authMsg("Entre un mail et un mot de passe d'au moins 6 caractères.");
+    authMsg("Création du compte…");
+    const { data: res, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo() } });
+    if (error) authMsg("Création impossible : " + error.message);
+    else if (res.session) { authMsg(""); $("#authPass").value = ""; }
+    else authMsg("Compte créé. Clique sur le lien de confirmation reçu par mail, puis connecte-toi.");
+  });
+
+  $("#magicBtn").addEventListener("click", async () => {
     const email = $("#authEmail").value.trim();
-    $("#authMsg").textContent = "Envoi du lien…";
-    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-    $("#authMsg").textContent = error ? "Impossible d'envoyer le lien : " + error.message : "Lien envoyé. Ouvre ta boîte mail et clique dessus depuis cet appareil.";
+    if (!email) return authMsg("Entre ton mail d'abord.");
+    authMsg("Envoi du lien…");
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo() } });
+    authMsg(error ? "Impossible d'envoyer le lien : " + error.message : "Lien envoyé. Clique dessus depuis cet appareil.");
+  });
+
+  $("#passForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { error } = await sb.auth.updateUser({ password: $("#newPass").value });
+    $("#passMsg").textContent = error ? "Échec : " + error.message : "Mot de passe enregistré.";
+    if (!error) $("#newPass").value = "";
   });
   $("#logoutBtn").addEventListener("click", async () => { await sb.auth.signOut(); toast("Déconnectée"); });
 

@@ -72,15 +72,25 @@
       <h3>Compte en ligne</h3>
       <p id="authOff" hidden>Supabase n'est pas encore configuré : renseigne <code>config.js</code>.</p>
       <form id="authIn" hidden>
-        <p>Connecte-toi par mail pour retrouver tes données sur tous tes appareils. Tu reçois un lien, sans mot de passe.</p>
+        <p>Connecte-toi pour retrouver tes données sur tous tes appareils.</p>
         <div class="actions">
-          <input id="authEmail" type="email" placeholder="ton@mail.fr" required autocomplete="email">
-          <button class="btn" type="submit">Recevoir le lien</button>
+          <input id="authEmail" type="email" placeholder="ton@mail.fr" required autocomplete="username">
+          <input id="authPass" type="password" placeholder="Mot de passe" required minlength="6" autocomplete="current-password">
+        </div>
+        <div class="actions">
+          <button class="btn" type="submit">Se connecter</button>
+          <button class="btn ghost" id="signupBtn" type="button">Créer le compte</button>
+          <button class="btn ghost" id="magicBtn" type="button">Recevoir un lien par mail</button>
         </div>
         <p class="status" id="authMsg" role="status"></p>
       </form>
       <div id="authOut" hidden>
         <p class="status">Connectée : <span id="authMail"></span></p>
+        <form id="passForm" class="actions">
+          <input id="newPass" type="password" placeholder="Nouveau mot de passe" required minlength="6" autocomplete="new-password">
+          <button class="btn ghost" type="submit">Définir le mot de passe</button>
+        </form>
+        <p class="status" id="passMsg" role="status"></p>
         <div class="actions"><button class="btn ghost" id="logoutBtn" type="button">Se déconnecter</button></div>
       </div>
     </section>
