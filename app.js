@@ -128,6 +128,19 @@
     return `${day} à ${time.replace(":", "h")}`;
   };
 
+  /* Les VOD Twitch des non-affiliés expirent 7 jours après le stream. */
+  const VOD_DAYS = 7;
+  function vodInfo(s) {
+    if (s.clips && s.downloaded) return { cls: "safe", text: "VOD sauvegardée, plus de risque" };
+    const start = new Date(`${s.date}T${s.time || "00:00"}`).getTime();
+    if (isNaN(start)) return null;
+    const left = start + VOD_DAYS * 864e5 - Date.now();
+    if (left <= 0) return { cls: "expired", text: "VOD expirée" };
+    const hours = Math.ceil(left / 36e5);
+    const text = hours >= 24 ? `VOD expire dans ${Math.floor(hours / 24)} j ${hours % 24} h` : `VOD expire dans ${hours} h`;
+    return { cls: hours <= 48 ? "urgent" : "", text };
+  }
+
   function chip(kind, id, key, label, checked) {
     return `<label class="chip"><input type="checkbox" data-kind="${kind}" data-id="${id}" data-key="${key}" ${checked ? "checked" : ""}><span>${label}</span></label>`;
   }
@@ -137,13 +150,15 @@
     const all = [...data.streams].sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`));
     const done = (s) => STREAM_STEPS.every(([k]) => s[k]);
     const list = todoOnly ? all.filter((s) => !done(s)) : all;
-    $("#streamCount").textContent = `${all.filter(done).length} terminé(s) sur ${all.length}`;
+    const urgent = all.filter((s) => vodInfo(s)?.cls === "urgent").length;
+    $("#streamCount").textContent = `${all.filter(done).length} terminé(s) sur ${all.length}` + (urgent ? `, dont ${urgent} VOD à sauver vite` : "");
     $("#streamList").innerHTML = list.length
       ? list.map((s) => {
           const n = STREAM_STEPS.filter(([k]) => s[k]).length;
+          const vod = vodInfo(s);
           return `<article class="card ${n === STREAM_STEPS.length ? "complete" : ""}">
             <div class="head">
-              <div><h3>${esc(s.title)}</h3><p class="when">${esc(fmtWhen(s.date, s.time))}</p></div>
+              <div><h3>${esc(s.title)}</h3><p class="when">${esc(fmtWhen(s.date, s.time))}</p>${vod ? `<p class="vod ${vod.cls}">${vod.text}</p>` : ""}</div>
               <button class="del" data-del="streams" data-id="${s.id}" aria-label="Supprimer ${esc(s.title)}">Supprimer</button>
             </div>
             <div class="meter" aria-hidden="true"><i style="width:${(n / STREAM_STEPS.length) * 100}%"></i></div>
@@ -313,6 +328,7 @@
 
   /* ---------- Démarrage ---------- */
   setNowDefaults();
+  setInterval(() => { if (!$("#streamList").contains(document.activeElement)) renderStreams(); }, 5 * 60 * 1000);
   loadAll().then(() => {
     if (!fileHandle) setSync(false, "Sauvegarde locale");
     else if (!$("#syncDot").classList.contains("ok") && $("#syncLabel").textContent === "Sauvegarde locale") setSync(true, "Fichier synchronisé");

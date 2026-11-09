@@ -200,3 +200,13 @@ dialog p { line-height: 1.5; color: var(--text); }
 @media (max-width: 560px) { .add .btn { width: 100%; } }
 
 .group-label { margin: 0 0 -4px; font-size: .82rem; color: var(--muted); }
+
+/* Compte à rebours des VOD */
+.vod {
+  display: inline-block; margin: 8px 0 0; padding: 4px 12px;
+  font: 700 .85rem var(--display);
+  color: var(--neon-soft); border: 1px solid var(--line); border-radius: 999px;
+}
+.vod.urgent { color: #fff; background: var(--neon); border-color: var(--neon); box-shadow: var(--glow); }
+.vod.expired { color: var(--muted); border-style: dashed; text-decoration: line-through; }
+.vod.safe { color: var(--muted); font-weight: 500; }
