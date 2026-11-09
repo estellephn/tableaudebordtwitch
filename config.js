@@ -2,6 +2,6 @@
 // La clé "anon" (ou "publishable") peut être publique grâce aux règles RLS.
 // N'utilise JAMAIS la clé "service_role" ici.
 window.PIIXELIE_CONFIG = {
-  SUPABASE_URL: "https://VOTRE-PROJET.supabase.co",
-  SUPABASE_ANON_KEY: "VOTRE_CLE_ANON",
+  SUPABASE_URL: "https://lpmcircayjxbufkmpkiw.supabase.co/rest/v1/",
+  SUPABASE_ANON_KEY: "sb_publishable_TnRFA8gvbnImMGo5mY5EyQ_lqU-jJKR",
 };
