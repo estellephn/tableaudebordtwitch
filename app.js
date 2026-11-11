@@ -42,8 +42,8 @@
 
   /* Reprise des anciens formats de clips vers le suivi en 6 étapes. */
   const migrateClip = (c) => {
-    if ("insta" in c) return c; /* format actuel */
-    const base = { id: c.id, name: c.name, streamId: c.streamId, createdAt: c.createdAt, archived: !!c.archived };
+    if ("insta" in c) return c.archived ? { ...c, archived: false } : c; /* format actuel */
+    const base = { id: c.id, name: c.name, streamId: c.streamId, createdAt: c.createdAt };
     if ("published" in c || "draft" in c) { /* format "brouillon / publié" */
       const p = !!c.published;
       return { ...base, draft: !!c.draft || p, insta: p, downloaded: p, yt: p, tiktok: p, filed: p };
@@ -137,24 +137,14 @@
   }
 
   function renderClips() {
-    const showArch = $("#clipArchived").checked;
-    const live = data.clips.filter((c) => !c.archived);
-    const arch = data.clips.filter((c) => c.archived);
-    $("#clipStages").hidden = showArch;
+    const live = data.clips;
     $("#clipBulk").innerHTML = "";
-
-    let list;
-    if (showArch) {
-      list = arch;
-      $("#clipCount").textContent = `${arch.length} clip(s) archivé(s)`;
-    } else {
-      renderClipStages(live);
-      list = live.filter((c) => (clipStage === "active" ? stageOf(c) !== "done" : stageOf(c) === clipStage));
-      $("#clipCount").textContent = `${live.filter((c) => stageOf(c) === "done").length} terminé(s) sur ${live.length}`;
-      /* Actions par lot : plusieurs clips à programmer ou à ranger d'un coup. */
-      if (list.length && clipStage === "schedule") $("#clipBulk").innerHTML = `<button class="btn ghost" data-bulk="schedule">Marquer ces ${list.length} clip(s) programmés sur Shorts et TikTok</button>`;
-      if (list.length && clipStage === "file") $("#clipBulk").innerHTML = `<button class="btn ghost" data-bulk="file">Marquer ces ${list.length} clip(s) rangés dans « déjà publié »</button>`;
-    }
+    renderClipStages(live);
+    let list = live.filter((c) => (clipStage === "active" ? stageOf(c) !== "done" : stageOf(c) === clipStage));
+    $("#clipCount").textContent = `${live.filter((c) => stageOf(c) === "done").length} terminé(s) sur ${live.length}`;
+    /* Actions par lot : plusieurs clips à programmer ou à ranger d'un coup. */
+    if (list.length && clipStage === "schedule") $("#clipBulk").innerHTML = `<button class="btn ghost" data-bulk="schedule">Marquer ces ${list.length} clip(s) programmés sur Shorts et TikTok</button>`;
+    if (list.length && clipStage === "file") $("#clipBulk").innerHTML = `<button class="btn ghost" data-bulk="file">Marquer ces ${list.length} clip(s) rangés dans « déjà publié »</button>`;
     list = [...list].sort((a, b) => b.createdAt - a.createdAt);
 
     const streamName = (id) => data.streams.find((s) => s.id === id)?.title;
@@ -163,11 +153,10 @@
           const origin = streamName(c.streamId);
           const n = CLIP_STEPS.filter(([k]) => c[k]).length;
           const next = nextStep(c);
-          return `<article class="card ${!next ? "complete" : ""} ${c.archived ? "archived" : ""}">
+          return `<article class="card ${!next ? "complete" : ""}">
             <div class="head">
               <div><h3>${esc(c.name)}</h3>${origin ? `<p class="origin">Stream : ${esc(origin)}</p>` : ""}<p class="vod ${next ? "" : "safe"}">${next ? `Ensuite : ${next[1]}` : "Terminé"}</p></div>
               <div class="tools">
-                <button class="del" data-archive="clips" data-id="${c.id}" aria-label="${c.archived ? "Désarchiver" : "Archiver"} ${esc(c.name)}">${c.archived ? "Désarchiver" : "Archiver"}</button>
                 <button class="del" data-del="clips" data-id="${c.id}" aria-label="Supprimer ${esc(c.name)}">Supprimer</button>
               </div>
             </div>
@@ -175,7 +164,7 @@
             <div class="chips">${CLIP_STEPS.map(([k, l]) => chip("clips", c.id, k, l, c[k])).join("")}</div>
           </article>`;
         }).join("")
-      : `<p class="empty">${showArch ? "Aucun clip archivé." : data.clips.length ? "Aucun clip à cette étape." : "Aucun clip pour l'instant. Ajoute ton premier extrait."}</p>`;
+      : `<p class="empty">${data.clips.length ? "Aucun clip à cette étape." : "Aucun clip pour l'instant. Ajoute ton premier extrait."}</p>`;
   }
 
   function renderSelect() {
@@ -215,7 +204,7 @@
   $("#clipForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!requireUser()) return;
-    data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), draft: false, insta: false, downloaded: false, yt: false, tiktok: false, filed: false, archived: false });
+    data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), draft: false, insta: false, downloaded: false, yt: false, tiktok: false, filed: false });
     $("#cName").value = "";
     await persist(); render(); toast("Clip ajouté"); $("#clipForm").classList.remove("is-open"); updateFab();
   });
@@ -266,7 +255,6 @@
 
   $("#streamTodo").addEventListener("change", renderStreams);
   $("#streamArchived").addEventListener("change", renderStreams);
-  $("#clipArchived").addEventListener("change", renderClips);
 
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((x) => { const on = x === t; x.classList.toggle("is-active", on); x.setAttribute("aria-selected", on); });
