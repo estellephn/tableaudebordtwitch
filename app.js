@@ -8,15 +8,9 @@
     ["thumb", "Miniature faite"],
     ["rediff", "Rediff YouTube programmée"],
   ];
-  const CLIP_DRAFTS = [
-    ["draftShorts", "Brouillon Short"],
-    ["draftReels", "Brouillon Insta"],
-    ["draftTiktok", "Brouillon TikTok"],
-  ];
-  const CLIP_PLATFORMS = [
-    ["shorts", "Short YouTube"],
-    ["reels", "Reel Instagram"],
-    ["tiktok", "TikTok"],
+  const CLIP_STEPS = [
+    ["draft", "Brouillon"],
+    ["published", "Publié"],
   ];
 
   const emptyData = () => ({ updatedAt: 0, streams: [], clips: [] });
@@ -27,10 +21,16 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
+  /* Anciens clips (3 brouillons + 3 publications) : repris en "brouillon" / "publié". */
+  const migrateClip = (c) => ("draft" in c || "published" in c) ? c : {
+    id: c.id, name: c.name, streamId: c.streamId, createdAt: c.createdAt, archived: !!c.archived,
+    draft: !!(c.draftShorts || c.draftReels || c.draftTiktok),
+    published: !!(c.shorts && c.reels && c.tiktok),
+  };
   const normalize = (d) => ({
     updatedAt: Number(d?.updatedAt) || 0,
     streams: Array.isArray(d?.streams) ? d.streams : [],
-    clips: Array.isArray(d?.clips) ? d.clips : [],
+    clips: Array.isArray(d?.clips) ? d.clips.map(migrateClip) : [],
   });
 
   const cloudState = { ok: false, label: "" };
@@ -94,7 +94,7 @@
             <div class="head">
               <div><h3>${esc(s.title)}</h3><p class="when">${esc(fmtWhen(s.date, s.time))}</p>${vod ? `<p class="vod ${vod.cls}">${vod.text}</p>` : ""}</div>
               <div class="tools">
-                <button class="del" data-archive="${s.id}" aria-label="${s.archived ? "Désarchiver" : "Archiver"} ${esc(s.title)}">${s.archived ? "Désarchiver" : "Archiver"}</button>
+                <button class="del" data-archive="streams" data-id="${s.id}" aria-label="${s.archived ? "Désarchiver" : "Archiver"} ${esc(s.title)}">${s.archived ? "Désarchiver" : "Archiver"}</button>
                 <button class="del" data-del="streams" data-id="${s.id}" aria-label="Supprimer ${esc(s.title)}">Supprimer</button>
               </div>
             </div>
@@ -107,27 +107,26 @@
 
   function renderClips() {
     const todoOnly = $("#clipTodo").checked;
-    const done = (c) => CLIP_PLATFORMS.every(([k]) => c[k]);
-    const all = [...data.clips].sort((a, b) => b.createdAt - a.createdAt);
-    const list = todoOnly ? all.filter((c) => !done(c)) : all;
-    $("#clipCount").textContent = `${all.filter(done).length} publié(s) partout sur ${all.length}`;
+    const showArch = $("#clipArchived").checked;
+    const pool = data.clips.filter((c) => !!c.archived === showArch).sort((a, b) => b.createdAt - a.createdAt);
+    const list = todoOnly ? pool.filter((c) => !c.published) : pool;
+    $("#clipCount").textContent = `${pool.filter((c) => c.published).length} publié(s) sur ${pool.length}` + (showArch ? " (archivés)" : "");
     const streamName = (id) => data.streams.find((s) => s.id === id)?.title;
     $("#clipList").innerHTML = list.length
       ? list.map((c) => {
-          const n = CLIP_PLATFORMS.filter(([k]) => c[k]).length;
           const origin = streamName(c.streamId);
-          return `<article class="card ${n === CLIP_PLATFORMS.length ? "complete" : ""}">
+          return `<article class="card ${c.published ? "complete" : ""} ${c.archived ? "archived" : ""}">
             <div class="head">
               <div><h3>${esc(c.name)}</h3>${origin ? `<p class="origin">Stream : ${esc(origin)}</p>` : ""}</div>
-              <button class="del" data-del="clips" data-id="${c.id}" aria-label="Supprimer ${esc(c.name)}">Supprimer</button>
+              <div class="tools">
+                <button class="del" data-archive="clips" data-id="${c.id}" aria-label="${c.archived ? "Désarchiver" : "Archiver"} ${esc(c.name)}">${c.archived ? "Désarchiver" : "Archiver"}</button>
+                <button class="del" data-del="clips" data-id="${c.id}" aria-label="Supprimer ${esc(c.name)}">Supprimer</button>
+              </div>
             </div>
-            <p class="group-label">Brouillons créés</p>
-            <div class="chips">${CLIP_DRAFTS.map(([k, l]) => chip("clips", c.id, k, l, c[k])).join("")}</div>
-            <p class="group-label">Publiés</p>
-            <div class="chips">${CLIP_PLATFORMS.map(([k, l]) => chip("clips", c.id, k, l, c[k])).join("")}</div>
+            <div class="chips">${CLIP_STEPS.map(([k, l]) => chip("clips", c.id, k, l, c[k])).join("")}</div>
           </article>`;
         }).join("")
-      : `<p class="empty">${todoOnly ? "Tous tes clips sont publiés." : "Aucun clip pour l'instant. Ajoute ton premier extrait."}</p>`;
+      : `<p class="empty">${showArch ? "Aucun clip archivé." : todoOnly ? "Tous tes clips sont publiés." : "Aucun clip pour l'instant. Ajoute ton premier extrait."}</p>`;
   }
 
   function renderSelect() {
@@ -167,7 +166,7 @@
   $("#clipForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!requireUser()) return;
-    data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), draftShorts: false, draftReels: false, draftTiktok: false, shorts: false, reels: false, tiktok: false });
+    data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), draft: false, published: false, archived: false });
     $("#cName").value = "";
     await persist(); render(); toast("Clip ajouté");
   });
@@ -186,11 +185,12 @@
   document.addEventListener("click", async (e) => {
     const a = e.target.closest("[data-archive]");
     if (a) {
-      const s = data.streams.find((x) => x.id === a.dataset.archive);
-      if (!s || !requireUser()) return;
-      s.archived = !s.archived;
+      const item = data[a.dataset.archive]?.find((x) => x.id === a.dataset.id);
+      if (!item || !requireUser()) return;
+      item.archived = !item.archived;
       await persist(); render();
-      toast(s.archived ? "Stream archivé" : "Stream désarchivé");
+      const what = a.dataset.archive === "streams" ? "Stream" : "Clip";
+      toast(item.archived ? `${what} archivé` : `${what} désarchivé`);
       return;
     }
     const b = e.target.closest("[data-del]");
@@ -203,6 +203,7 @@
   $("#streamTodo").addEventListener("change", renderStreams);
   $("#streamArchived").addEventListener("change", renderStreams);
   $("#clipTodo").addEventListener("change", renderClips);
+  $("#clipArchived").addEventListener("change", renderClips);
 
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
     document.querySelectorAll(".tab").forEach((x) => { const on = x === t; x.classList.toggle("is-active", on); x.setAttribute("aria-selected", on); });
