@@ -296,3 +296,57 @@ input[type=time]::-webkit-date-and-time-value { text-align: left; min-height: 1.
 .stage[aria-pressed="true"] { color: #fff; border-color: var(--neon); background: rgba(255, 47, 168, .18); box-shadow: var(--glow); }
 .bulk:not(:empty) { margin: 0 0 12px; }
 @media (max-width: 640px) { .bulk .btn { width: 100%; } }
+
+/* ---------- Optimisation téléphone ---------- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+button, .chip, .stage, label.inline { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+[hidden] { display: none !important; }
+.fab { display: none; }
+
+@media (max-width: 640px) {
+  body { padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
+  #syncLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
+
+  /* Formulaires repliés, ouverts par le bouton flottant */
+  .add:not(.is-open) { display: none; }
+  .fab {
+    display: inline-flex; align-items: center; gap: 10px;
+    position: fixed; right: 14px; z-index: 25;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    font: 700 1rem var(--display); color: #fff;
+    background: var(--neon); border: 1px solid var(--neon); border-radius: 999px;
+    padding: 0 20px 0 16px; min-height: 52px; cursor: pointer; box-shadow: var(--glow);
+  }
+  .fab #fabIcon { font-size: 1.5rem; line-height: 1; }
+  .fab[aria-expanded="true"] { background: var(--panel); color: var(--neon-soft); }
+
+  /* Filtres d'étape toujours accessibles en défilant */
+  .stages {
+    position: sticky; top: 0; z-index: 15; background: var(--bg);
+    padding-top: calc(env(safe-area-inset-top) + 6px); margin-top: 0;
+  }
+
+  /* Résumé et filtres en colonne */
+  .bar { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .filters { gap: 0 18px; }
+
+  /* Cartes : titre en haut, actions en bas, pleine largeur */
+  .head { display: contents; }
+  .head > div:first-child { order: 1; min-width: 0; }
+  .card .meter { order: 2; }
+  .card .chips { order: 3; }
+  .tools { order: 4; width: 100%; gap: 8px; }
+  .tools .del { flex: 1; min-height: 44px; border-color: var(--line); }
+  .tools .del:last-child { color: #d98ab8; }
+
+  .chip:active span, .btn:active, .stage:active, .fab:active { transform: scale(.97); }
+
+  /* Message de confirmation en haut, pour ne pas gêner le bouton flottant */
+  .toast {
+    top: calc(12px + env(safe-area-inset-top)); bottom: auto;
+    transform: translate(-50%, -20px);
+  }
+  .toast.show { transform: translate(-50%, 0); }
+}
+@media (max-width: 360px) { .chips { grid-template-columns: 1fr; } }
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) { .chip:active span, .btn:active, .stage:active, .fab:active { transform: none; } }

@@ -209,7 +209,7 @@
     if (!requireUser()) return;
     data.streams.push({ id: uid(), title: $("#sTitle").value.trim(), date: $("#sDate").value, time: $("#sTime").value, clips: false, downloaded: false, thumb: false, rediff: false });
     $("#sTitle").value = "";
-    await persist(); render(); toast("Stream ajouté");
+    await persist(); render(); toast("Stream ajouté"); $("#streamForm").classList.remove("is-open"); updateFab();
   });
 
   $("#clipForm").addEventListener("submit", async (e) => {
@@ -217,7 +217,7 @@
     if (!requireUser()) return;
     data.clips.push({ id: uid(), name: $("#cName").value.trim(), streamId: $("#cStream").value, createdAt: Date.now(), draft: false, insta: false, downloaded: false, yt: false, tiktok: false, filed: false, archived: false });
     $("#cName").value = "";
-    await persist(); render(); toast("Clip ajouté");
+    await persist(); render(); toast("Clip ajouté"); $("#clipForm").classList.remove("is-open"); updateFab();
   });
 
   document.addEventListener("change", async (e) => {
@@ -226,6 +226,7 @@
     const item = data[el.dataset.kind].find((x) => x.id === el.dataset.id);
     if (!item) return;
     item[el.dataset.key] = el.checked;
+    navigator.vibrate?.(8);
     await persist(); render();
     const focus = document.querySelector(`[data-kind="${el.dataset.kind}"][data-id="${el.dataset.id}"][data-key="${el.dataset.key}"]`);
     focus?.focus();
@@ -271,7 +272,25 @@
     document.querySelectorAll(".tab").forEach((x) => { const on = x === t; x.classList.toggle("is-active", on); x.setAttribute("aria-selected", on); });
     $("#tab-streams").hidden = t.dataset.tab !== "streams";
     $("#tab-clips").hidden = t.dataset.tab !== "clips";
+    updateFab();
   }));
+
+  /* Téléphone : les formulaires d'ajout sont repliés, le bouton flottant les ouvre. */
+  const activeForm = () => ($("#tab-streams").hidden ? $("#clipForm") : $("#streamForm"));
+  function updateFab() {
+    const onStreams = !$("#tab-streams").hidden;
+    const open = activeForm().classList.contains("is-open");
+    $("#fab").setAttribute("aria-expanded", open);
+    $("#fabIcon").textContent = open ? "×" : "+";
+    $("#fabLabel").textContent = open ? "Fermer" : onStreams ? "Ajouter un stream" : "Ajouter un clip";
+  }
+  $("#fab").addEventListener("click", () => {
+    document.querySelectorAll(".add").forEach((f) => { if (f !== activeForm()) f.classList.remove("is-open"); });
+    const f = activeForm();
+    f.classList.toggle("is-open");
+    updateFab();
+    if (f.classList.contains("is-open")) { window.scrollTo({ top: 0, behavior: "smooth" }); f.querySelector("input")?.focus({ preventScroll: true }); }
+  });
 
   /* ---------- Fenêtre de connexion ---------- */
   const dlg = $("#syncDialog");
@@ -297,6 +316,8 @@
     $("#authIn").hidden = !sb || !!user;
     $("#authOut").hidden = !sb || !user;
     if (user) $("#authMail").textContent = user.email;
+    $("#fab").hidden = !user;
+    updateFab();
   }
 
   async function cloudPush() {
